@@ -16,6 +16,15 @@ type Meta struct {
 }
 
 
+/*type Id struct {
+	Id int `json: "id"`
+}*/
+
+
+// lastId
+// map id->url
+
+
 
 func metaHandler(w http.ResponseWriter, r * http.Request){
 
