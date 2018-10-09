@@ -35,9 +35,32 @@ func metaHandler(w http.ResponseWriter, r * http.Request){
 
 
 
+func inputHandler(w http.ResponseWriter, r * http.Request){
+	switch r.Method {
+    case "GET":     
+         http.ServeFile(w, r, "form.html")
+    case "POST":
+        
+        if err := r.ParseForm(); err != nil {
+            fmt.Fprintf(w, "ParseForm() err: %v", err)
+            return
+        }
+        fmt.Fprintf(w, "Post from website! r.PostFrom = %v\n", r.PostForm)
+        link := r.FormValue("link")
+   
+        fmt.Fprintf(w, "Name = %s\n", link)
+    default:
+        fmt.Fprintf(w, "Sorry, only GET and POST methods are supported.")
+    }
+}
+
+
+
+
 func main(){
 
-	http.HandleFunc("/api/meta/", metaHandler);
+	http.HandleFunc("/api", metaHandler);
+	http.HandleFunc("/api/igc", inputHandler);
 	http.ListenAndServe(":8080", nil);
 
 
