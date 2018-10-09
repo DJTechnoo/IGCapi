@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 )
 
@@ -23,6 +24,10 @@ type Meta struct {
 
 // lastId
 // map id->url
+
+var lastId int
+var ids [] string
+var igcs map[int]string
 
 
 
@@ -54,10 +59,19 @@ func inputHandler(w http.ResponseWriter, r * http.Request){
             fmt.Fprintf(w, "ParseForm() err: %v", err)
             return
         }
-        fmt.Fprintf(w, "Post from website! r.PostFrom = %v\n", r.PostForm)
+        
+        
         link := r.FormValue("link")
+        // check url first
+        
+        
+        igcs[lastId] = string(link)
+        fmt.Fprintln(w, igcs);
+        idManager(w);
+     
+        
    
-        fmt.Fprintf(w, "Name = %s\n", link)
+        fmt.Fprintf(w, "link = %s\n", link)
     default:
         fmt.Fprintf(w, "Sorry, only GET and POST methods are supported.")
     }
@@ -65,9 +79,20 @@ func inputHandler(w http.ResponseWriter, r * http.Request){
 
 
 
+func idManager(w http.ResponseWriter){
+	ids = append(ids, strconv.Itoa(lastId))
+    lastId++
+    
+    idsJson, _ := json.MarshalIndent(ids, "", "    ")
+    fmt.Fprintln(w, string(idsJson))
+    
+}
+
+
+
 
 func main(){
-
+	igcs = make(map[int]string)
 	http.HandleFunc("/api", metaHandler);
 	http.HandleFunc("/api/igc", inputHandler);
 	http.ListenAndServe(":8080", nil);
