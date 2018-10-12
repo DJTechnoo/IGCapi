@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"google.golang.org/appengine"
 
 )
 
@@ -95,7 +96,9 @@ func main(){
 	igcs = make(map[int]string)
 	http.HandleFunc("/api", metaHandler);
 	http.HandleFunc("/api/igc", inputHandler);
-	http.ListenAndServe(":8080", nil);
+	//http.HandleFunc("/api/igc/<id>", inputHandler);
+	//http.ListenAndServe(":8080", nil);
+	appengine.Main()
 
 
 }
