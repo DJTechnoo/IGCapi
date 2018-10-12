@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"google.golang.org/appengine"
 
 )
@@ -50,31 +51,53 @@ func metaHandler(w http.ResponseWriter, r * http.Request){
 
 
 
+func argsHandler(w http.ResponseWriter, r * http.Request){
+	parts := strings.Split(r.URL.Path, "/")
+	
+	if len(parts) > 3{
+		fmt.Fprintln(w, "first arg " + parts[3]);
+	}
+	
+	if len(parts) > 4 {
+		fmt.Fprintln(w, "second arg " + parts[4]);
+	}
+}
+
+
+
+
 func inputHandler(w http.ResponseWriter, r * http.Request){
-	switch r.Method {
-    case "GET":     
-         http.ServeFile(w, r, "form.html")
-    case "POST":
-        
-        if err := r.ParseForm(); err != nil {
-            fmt.Fprintf(w, "ParseForm() err: %v", err)
-            return
-        }
-        
-        
-        link := r.FormValue("link")
-        // check url first
-        
-        
-        igcs[lastId] = string(link)
-        fmt.Fprintln(w, igcs);
-        idManager(w);
-     
-        
-   
-        fmt.Fprintf(w, "link = %s\n", link)
-    default:
-        fmt.Fprintf(w, "Sorry, only GET and POST methods are supported.")
+
+	parts := strings.Split(r.URL.Path, "/")
+	
+	if len(parts) < 4 {
+		switch r.Method {
+		case "GET":     
+		     http.ServeFile(w, r, "form.html")
+		case "POST":
+		    
+		    if err := r.ParseForm(); err != nil {
+		        fmt.Fprintf(w, "ParseForm() err: %v", err)
+		        return
+		    }
+		    
+		    
+		    link := r.FormValue("link")
+		    // check url first
+		    
+		    
+		    igcs[lastId] = string(link)
+		    fmt.Fprintln(w, igcs);
+		    idManager(w);
+		 
+		    
+	   
+		    fmt.Fprintf(w, "link = %s\n", link)
+		default:
+		    fmt.Fprintf(w, "Sorry, only GET and POST methods are supported.")
+		}
+    } else {
+    	fmt.Fprintln(w, "More params!")
     }
 }
 
@@ -96,6 +119,7 @@ func main(){
 	igcs = make(map[int]string)
 	http.HandleFunc("/api", metaHandler);
 	http.HandleFunc("/api/igc", inputHandler);
+	http.HandleFunc("/api/igc/", argsHandler);
 	//http.HandleFunc("/api/igc/<id>", inputHandler);
 	//http.ListenAndServe(":8080", nil);
 	appengine.Main()
