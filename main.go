@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"github.com/DJTechnoo/goigc"
 	"google.golang.org/appengine"
 
 )
@@ -27,12 +28,21 @@ type Meta struct {
 // lastId
 // map id->url
 
-var lastId int
-var ids [] string
-var igcs map[int]string
+// constants
+
+const ROOT = "/igcinfo"		// this is the root of the app
+const ID_ARG = 4			// URL index for ID
+const FIELD_ARG = 5 		// URL index for FIELD
+
+
+var lastId int				// Unique last id
+var ids [] string			// array of ids
+var igcs map[int]string		// urls get associated with ids
 
 
 
+//		Serves /igcinfo/api/
+//		Outputs metadata for this app in json
 func metaHandler(w http.ResponseWriter, r * http.Request){
 
 	meta :=		Meta{
@@ -51,26 +61,45 @@ func metaHandler(w http.ResponseWriter, r * http.Request){
 
 
 
+//		Handles arguments passed in the URL
+//		and ID and FIELD and searches through the URL map
+//		to get the Track
 func argsHandler(w http.ResponseWriter, r * http.Request){
-	parts := strings.Split(r.URL.Path, "/")
+
+	parts := strings.Split(r.URL.Path, "/")				// array of url parts
 	
-	if len(parts) > 3{
-		fmt.Fprintln(w, "first arg " + parts[3]);
+	if len(parts) > ID_ARG{
+		fmt.Fprintln(w, "first arg " + parts[ID_ARG]);
 	}
 	
-	if len(parts) > 4 {
-		fmt.Fprintln(w, "second arg " + parts[4]);
+	if len(parts) > FIELD_ARG {
+		fmt.Fprintln(w, "second arg " + parts[FIELD_ARG]);
+		index, _ := strconv.Atoi(parts[FIELD_ARG])
+		s := igcs[index]
+		//s := "http://skypolaris.org/wp-content/uploads/IGS%20Files/Madrid%20to%20Jerez.igc"
+		track, err := igc.ParseLocation(s, r)
+		if err != nil {
+			//fmt.Fprintln(w, "OMG NO")
+		    http.Error(w, err.Error(), 500)
+		}
+
+		fmt.Fprintf(w, "Pilot: %s, gliderType: %s, date: %s", 
+		    track.Pilot, track.GliderType, track.Date.String())
 	}
 }
 
 
 
 
+//		handles POST and GET
+//		makes use of "form.html" to get a URL to igc file
+//		The URL gets stored with a unique ID in a map
+//		json array outputs list of id's
 func inputHandler(w http.ResponseWriter, r * http.Request){
 
 	parts := strings.Split(r.URL.Path, "/")
 	
-	if len(parts) < 4 {
+	if len(parts) < 5 {
 		switch r.Method {
 		case "GET":     
 		     http.ServeFile(w, r, "form.html")
@@ -117,9 +146,9 @@ func idManager(w http.ResponseWriter){
 
 func main(){
 	igcs = make(map[int]string)
-	http.HandleFunc("/api", metaHandler);
-	http.HandleFunc("/api/igc", inputHandler);
-	http.HandleFunc("/api/igc/", argsHandler);
+	http.HandleFunc(ROOT + "/api", metaHandler);
+	http.HandleFunc(ROOT + "/api/igc", inputHandler);
+	http.HandleFunc(ROOT + "/api/igc/", argsHandler);
 	//http.HandleFunc("/api/igc/<id>", inputHandler);
 	//http.ListenAndServe(":8080", nil);
 	appengine.Main()
