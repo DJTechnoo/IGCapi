@@ -21,6 +21,23 @@ type Meta struct {
 	Version string `json:"version"`
 }
 
+/*
+{
+"H_date": <date from File Header, H-record>,
+"pilot": <pilot>,
+"glider": <glider>,
+"glider_id": <glider_id>,
+"track_length": <calculated total track length>
+}
+
+*/
+type Fields struct {
+	Pilot string `json:"pilot"`
+	Glider string `json:"glider"`
+	Glider_id string `json:"glider_id"`
+	Track_len string `json:"track_lenght"`
+}
+
 
 /*type Id struct {
 	Id int `json: "id"`
@@ -70,27 +87,45 @@ func metaHandler(w http.ResponseWriter, r * http.Request){
 //		Handles arguments passed in the URL
 //		and ID and FIELD and searches through the URL map
 //		to get the Track
+
+
+func trackJson(trackUrl string , w http.ResponseWriter, r * http.Request){
+		
+		
+		track, err := igc.ParseLocation(trackUrl, r)
+		if err != nil {
+		    http.Error(w, err.Error(), 500)
+		}
+		fields := Fields {track.Pilot, track.GliderType, track.GliderID, "not yet"}
+		m, err := json.MarshalIndent(&fields, "", "    ")
+		if err != nil{
+			fmt.Fprintln(w, err)
+			return
+		}
+	
+		fmt.Fprintf(w, string(m))
+
+}
+
+
 func argsHandler(w http.ResponseWriter, r * http.Request){
 
 	parts := strings.Split(r.URL.Path, "/")				// array of url parts
 	
 	if len(parts) > ID_ARG{
-		fmt.Fprintln(w, "first arg " + parts[ID_ARG]);
+		index, _ := strconv.Atoi(parts[ID_ARG])
+		s := igcs[index]
+		trackJson(s, w, r)
+		//s := "http://skypolaris.org/wp-content/uploads/IGS%20Files/Madrid%20to%20Jerez.igc"
+		
+		//fmt.Fprintf(w, "Pilot: %s, gliderType: %s, date: %s", 
+		  //  track.Pilot, track.GliderType, track.Date.String())
+		
 	}
 	
 	if len(parts) > FIELD_ARG {
-		fmt.Fprintln(w, "second arg " + parts[FIELD_ARG]);
-		index, _ := strconv.Atoi(parts[FIELD_ARG])
-		s := igcs[index]
-		//s := "http://skypolaris.org/wp-content/uploads/IGS%20Files/Madrid%20to%20Jerez.igc"
-		track, err := igc.ParseLocation(s, r)
-		if err != nil {
-			//fmt.Fprintln(w, "OMG NO")
-		    http.Error(w, err.Error(), 500)
-		}
-
-		fmt.Fprintf(w, "Pilot: %s, gliderType: %s, date: %s", 
-		    track.Pilot, track.GliderType, track.Date.String())
+		
+		
 	}
 }
 
