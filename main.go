@@ -4,6 +4,7 @@ import (
 
 
 	"fmt"
+	"time"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 
 
 type Meta struct {
+	Uptime string `json:"uptime"`
 	Info string `json:"info"`
 	Version string `json:"version"`
 }
@@ -38,6 +40,7 @@ const FIELD_ARG = 5 		// URL index for FIELD
 var lastId int				// Unique last id
 var ids [] string			// array of ids
 var igcs map[int]string		// urls get associated with ids
+var startTime time.Time
 
 
 
@@ -46,6 +49,7 @@ var igcs map[int]string		// urls get associated with ids
 func metaHandler(w http.ResponseWriter, r * http.Request){
 
 	meta :=		Meta{
+					Uptime: calculateDuration(time.Since(startTime)),
 					Info: "Api for IGC files",
 					Version: "v0.1"}
 					
@@ -55,7 +59,8 @@ func metaHandler(w http.ResponseWriter, r * http.Request){
 		return
 	}
 	
-	fmt.Fprintf(w, string(m))	
+	fmt.Fprintf(w, string(m))
+	
 }
 
 
@@ -142,9 +147,30 @@ func idManager(w http.ResponseWriter){
 }
 
 
+func calculateDuration(t time.Duration)(string){
+	totalTime := int(t) / int(time.Second)
+
+	remainderSeconds 	:= totalTime%60				// final seconds
+	minutes				:= totalTime / 60
+	remainderMinutes	:= minutes%60					// final minutes
+	hours				:= minutes / 60
+	remainderHours		:= hours%24					// final hours
+	days				:= hours / 24
+	remainderDays		:= days%7						// final days
+	months				:= days / 28
+	remainderMonths		:= months%12 					// final months
+	years				:= months / 12		// final years
+
+	
+	s := "P"+strconv.Itoa(years)+"Y"+strconv.Itoa(remainderMonths)+"M"+strconv.Itoa(remainderDays)+"D"+strconv.Itoa(remainderHours)+"H"+strconv.Itoa(remainderMinutes)+"M"+strconv.Itoa(remainderSeconds)+"S"
+	return s	
+}
+
+
 
 
 func main(){
+	startTime = time.Now()
 	igcs = make(map[int]string)
 	http.HandleFunc(ROOT + "/api", metaHandler);
 	http.HandleFunc(ROOT + "/api/igc", inputHandler);
