@@ -61,6 +61,7 @@ func metaHandler(w http.ResponseWriter, r * http.Request){
 	
 	fmt.Fprintf(w, string(m))
 	
+	
 }
 
 
@@ -123,6 +124,7 @@ func inputHandler(w http.ResponseWriter, r * http.Request){
 		    igcs[lastId] = string(link)
 		    fmt.Fprintln(w, igcs);
 		    idManager(w);
+		    
 		 
 		    
 	   
@@ -148,7 +150,8 @@ func idManager(w http.ResponseWriter){
 
 
 func calculateDuration(t time.Duration)(string){
-	totalTime := int(t) / int(time.Second)
+	startTime = time.Now()
+	totalTime := int(startTime.Unix()) - 1539395670 //int(t) / int(time.Second)
 
 	remainderSeconds 	:= totalTime%60				// final seconds
 	minutes				:= totalTime / 60
