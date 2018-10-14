@@ -32,10 +32,11 @@ type Meta struct {
 
 */
 type Fields struct {
+	H_date time.Time `json:"H_date"`
 	Pilot string `json:"pilot"`
 	Glider string `json:"glider"`
 	Glider_id string `json:"glider_id"`
-	Track_len string `json:"track_lenght"`
+	Track_len float64 `json:"track_lenght"`
 }
 
 
@@ -52,6 +53,7 @@ type Fields struct {
 const ROOT = "/igcinfo"		// this is the root of the app
 const ID_ARG = 4			// URL index for ID
 const FIELD_ARG = 5 		// URL index for FIELD
+const APPTIME = 1539395670	// unix time of deployment
 
 
 var lastId int				// Unique last id
@@ -65,10 +67,10 @@ var startTime time.Time
 //		Outputs metadata for this app in json
 func metaHandler(w http.ResponseWriter, r * http.Request){
 
-	meta :=		Meta{
-					Uptime: calculateDuration(time.Since(startTime)),
-					Info: "Api for IGC files",
-					Version: "v0.1"}
+	meta :=	Meta{
+				Uptime: calculateDuration(time.Since(startTime)),
+				Info: "Api for IGC files",
+				Version: "v0.1"}
 					
 	m, err := json.MarshalIndent(&meta, "", "    ")
 	if err != nil{
@@ -97,7 +99,11 @@ func trackJson(trackUrl string , w http.ResponseWriter, r * http.Request){
 		    http.Error(w, err.Error(), 500)
 		    return
 		}
-		fields := Fields {track.Pilot, track.GliderType, track.GliderID, "not yet"}
+		
+		
+		trackLen := track.Task.Distance()
+		
+		fields := Fields {track.Date, track.Pilot, track.GliderType, track.GliderID, trackLen}
 		m, err := json.MarshalIndent(&fields, "", "    ")
 		if err != nil{
 			fmt.Fprintln(w, err)
@@ -109,22 +115,48 @@ func trackJson(trackUrl string , w http.ResponseWriter, r * http.Request){
 }
 
 
+func trackField(index int, field string, w http.ResponseWriter, r * http.Request){
+
+		trackUrl := igcs[index]
+		track, err := igc.ParseLocation(trackUrl, r)
+		if err != nil {
+		    http.Error(w, err.Error(), 500)
+		    return
+		}
+		
+		trackLen := track.Task.Distance()
+		
+		switch field {
+			case "pilot": fmt.Fprintln(w, track.Pilot)
+			case "track_length": fmt.Fprintln(w, trackLen)
+			case "glider":	fmt.Fprintln(w, track.GliderType)
+			case "glider_id": fmt.Fprintln(w, track.GliderID)
+			case "H_date": fmt.Fprintln(w, track.Date)
+			default: fmt.Fprintln(w, "NOT FOUND")
+		
+		}
+
+
+}
+
+
 func argsHandler(w http.ResponseWriter, r * http.Request){
 
 	parts := strings.Split(r.URL.Path, "/")				// array of url parts
 	
-	if len(parts) > ID_ARG{
+	if len(parts) > ID_ARG && len(parts) < FIELD_ARG+1{
 		index, _ := strconv.Atoi(parts[ID_ARG])
 		s := igcs[index]
 		trackJson(s, w, r)
-		//s := "http://skypolaris.org/wp-content/uploads/IGS%20Files/Madrid%20to%20Jerez.igc"
-		
-		//fmt.Fprintf(w, "Pilot: %s, gliderType: %s, date: %s", 
-		  //  track.Pilot, track.GliderType, track.Date.String())
 		
 	}
 	
 	if len(parts) > FIELD_ARG {
+		index, _ := strconv.Atoi(parts[ID_ARG])
+		field := string(parts[FIELD_ARG])
+		if index >= 0 && index < lastId {
+			trackField(index, field, w, r)
+		}
 		
 		
 	}
@@ -191,7 +223,7 @@ func idManager(w http.ResponseWriter){
 
 func calculateDuration(t time.Duration)(string){
 	startTime = time.Now()
-	totalTime := int(startTime.Unix()) - 1539395670 //int(t) / int(time.Second)
+	totalTime := int(startTime.Unix()) - APPTIME //int(t) / int(time.Second)
 
 	remainderSeconds 	:= totalTime%60				// final seconds
 	minutes				:= totalTime / 60
