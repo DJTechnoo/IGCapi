@@ -1,3 +1,8 @@
+// App made by Askel Eirik Johansson
+// with use of goigc
+
+
+
 package main
 
 
