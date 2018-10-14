@@ -1,7 +1,7 @@
 package main
 
-import (
 
+import (
 
 	"fmt"
 	"time"
@@ -15,22 +15,17 @@ import (
 )
 
 
+
+// Meta will hold json for metadata /api
 type Meta struct {
 	Uptime string `json:"uptime"`
 	Info string `json:"info"`
 	Version string `json:"version"`
 }
 
-/*
-{
-"H_date": <date from File Header, H-record>,
-"pilot": <pilot>,
-"glider": <glider>,
-"glider_id": <glider_id>,
-"track_length": <calculated total track length>
-}
 
-*/
+
+// Fields will hold json for Track
 type Fields struct {
 	H_date time.Time `json:"H_date"`
 	Pilot string `json:"pilot"`
@@ -40,13 +35,6 @@ type Fields struct {
 }
 
 
-/*type Id struct {
-	Id int `json: "id"`
-}*/
-
-
-// lastId
-// map id->url
 
 // constants
 
@@ -56,10 +44,11 @@ const FIELD_ARG = 5 		// URL index for FIELD
 const APPTIME = 1539395670	// unix time of deployment
 
 
+// GLOBAL Variables and datastructures
 var lastId int				// Unique last id
-var ids [] string			// array of ids
+var ids [] string			// slice of ids
 var igcs map[int]string		// urls get associated with ids
-var startTime time.Time
+var startTime time.Time		// for UPTIME
 
 
 
@@ -90,7 +79,6 @@ func metaHandler(w http.ResponseWriter, r * http.Request){
 //		and ID and FIELD and searches through the URL map
 //		to get the Track
 
-
 func trackJson(trackUrl string , w http.ResponseWriter, r * http.Request){
 		
 		
@@ -115,6 +103,11 @@ func trackJson(trackUrl string , w http.ResponseWriter, r * http.Request){
 }
 
 
+
+
+//	Takes the IGC ID, and Field as arguments
+//	prints on the screen the specified field
+//	of specified ID
 func trackField(index int, field string, w http.ResponseWriter, r * http.Request){
 
 		trackUrl := igcs[index]
@@ -140,6 +133,10 @@ func trackField(index int, field string, w http.ResponseWriter, r * http.Request
 }
 
 
+
+//	Handles the last two arguments for <ID> and <FIELD>
+//
+//
 func argsHandler(w http.ResponseWriter, r * http.Request){
 
 	parts := strings.Split(r.URL.Path, "/")				// array of url parts
@@ -194,13 +191,8 @@ func inputHandler(w http.ResponseWriter, r * http.Request){
 		    }
 		    
 		    igcs[lastId] = string(trackUrl)
-		    fmt.Fprintln(w, igcs);
 		    idManager(w);
 		    
-		 
-		    
-	   
-		    fmt.Fprintf(w, "link = %s\n", trackUrl)
 		default:
 		    fmt.Fprintf(w, "Sorry, only GET and POST methods are supported.")
 		}
@@ -211,6 +203,10 @@ func inputHandler(w http.ResponseWriter, r * http.Request){
 
 
 
+
+//	Creates a new ID for the next url
+//	and appends to ID-slice.
+//
 func idManager(w http.ResponseWriter){
 	ids = append(ids, strconv.Itoa(lastId))
     lastId++
@@ -221,6 +217,10 @@ func idManager(w http.ResponseWriter){
 }
 
 
+
+//	Input: Time in seconds
+//	Output: string of ISO 8601 of said time
+//
 func calculateDuration(t time.Duration)(string){
 	startTime = time.Now()
 	totalTime := int(startTime.Unix()) - APPTIME //int(t) / int(time.Second)
@@ -250,8 +250,6 @@ func main(){
 	http.HandleFunc(ROOT + "/api", metaHandler);
 	http.HandleFunc(ROOT + "/api/igc", inputHandler);
 	http.HandleFunc(ROOT + "/api/igc/", argsHandler);
-	//http.HandleFunc("/api/igc/<id>", inputHandler);
-	//http.ListenAndServe(":8080", nil);
 	appengine.Main()
 
 
