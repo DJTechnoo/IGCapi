@@ -89,7 +89,8 @@ func trackJson(trackUrl string , w http.ResponseWriter, r * http.Request){
 		
 		track, err := igc.ParseLocation(trackUrl, r)
 		if err != nil {
-		    http.Error(w, err.Error(), 500)
+		    status := 404
+		    http.Error(w, http.StatusText(status), status)
 		    return
 		}
 		
@@ -118,7 +119,8 @@ func trackField(index int, field string, w http.ResponseWriter, r * http.Request
 		trackUrl := igcs[index]
 		track, err := igc.ParseLocation(trackUrl, r)
 		if err != nil {
-		    http.Error(w, err.Error(), 500)
+			status := 404
+		    http.Error(w, http.StatusText(status), status)
 		    return
 		}
 		
@@ -130,7 +132,9 @@ func trackField(index int, field string, w http.ResponseWriter, r * http.Request
 			case "glider":	fmt.Fprintln(w, track.GliderType)
 			case "glider_id": fmt.Fprintln(w, track.GliderID)
 			case "H_date": fmt.Fprintln(w, track.Date)
-			default: fmt.Fprintln(w, "NOT FOUND")
+			default: 	status := 404
+		    			http.Error(w, http.StatusText(status), status)
+		    			return
 		
 		}
 
@@ -146,15 +150,31 @@ func argsHandler(w http.ResponseWriter, r * http.Request){
 
 	parts := strings.Split(r.URL.Path, "/")				// array of url parts
 	
+	if len(parts) > FIELD_ARG + 1{
+		status := 400
+		http.Error(w, http.StatusText(status), status)
+		return
+	}
+	
 	if len(parts) > ID_ARG && len(parts) < FIELD_ARG+1{
-		index, _ := strconv.Atoi(parts[ID_ARG])
+		index, err := strconv.Atoi(parts[ID_ARG])
+		if err != nil{
+			status := 404
+		    http.Error(w, http.StatusText(status), status)
+		    return
+		}
 		s := igcs[index]
 		trackJson(s, w, r)
 		
 	}
 	
 	if len(parts) > FIELD_ARG {
-		index, _ := strconv.Atoi(parts[ID_ARG])
+		index, err := strconv.Atoi(parts[ID_ARG])
+		if err != nil{
+			status := 404
+		    http.Error(w, http.StatusText(status), status)
+		    return
+		}
 		field := string(parts[FIELD_ARG])
 		if index >= 0 && index < lastId {
 			trackField(index, field, w, r)
@@ -191,8 +211,9 @@ func inputHandler(w http.ResponseWriter, r * http.Request){
 // get url from form and ten see if the url is valid. If it is, store in map
 		    trackUrl := r.FormValue("link")
 		    if _, err := igc.ParseLocation(trackUrl, r); err != nil {
-		    	http.Error(w, err.Error(), 500)
-		    	return
+		    	status := 400
+				http.Error(w, http.StatusText(status), status)
+				return
 		    }
 		    
 		    igcs[lastId] = string(trackUrl)
