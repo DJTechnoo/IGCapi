@@ -95,6 +95,7 @@ func trackJson(trackUrl string , w http.ResponseWriter, r * http.Request){
 		track, err := igc.ParseLocation(trackUrl, r)
 		if err != nil {
 		    http.Error(w, err.Error(), 500)
+		    return
 		}
 		fields := Fields {track.Pilot, track.GliderType, track.GliderID, "not yet"}
 		m, err := json.MarshalIndent(&fields, "", "    ")
@@ -152,18 +153,22 @@ func inputHandler(w http.ResponseWriter, r * http.Request){
 		    }
 		    
 		    
-		    link := r.FormValue("link")
-		    // check url first
+
+// get url from form and ten see if the url is valid. If it is, store in map
+		    trackUrl := r.FormValue("link")
+		    if _, err := igc.ParseLocation(trackUrl, r); err != nil {
+		    	http.Error(w, err.Error(), 500)
+		    	return
+		    }
 		    
-		    
-		    igcs[lastId] = string(link)
+		    igcs[lastId] = string(trackUrl)
 		    fmt.Fprintln(w, igcs);
 		    idManager(w);
 		    
 		 
 		    
 	   
-		    fmt.Fprintf(w, "link = %s\n", link)
+		    fmt.Fprintf(w, "link = %s\n", trackUrl)
 		default:
 		    fmt.Fprintf(w, "Sorry, only GET and POST methods are supported.")
 		}
