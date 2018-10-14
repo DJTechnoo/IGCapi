@@ -49,8 +49,8 @@ func metaHandler(w http.ResponseWriter, r *http.Request) {
 
 	meta := Meta{
 		Uptime:  calculateDuration(time.Since(startTime)),
-		Info:    "Api for IGC files",
-		Version: "v0.1"}
+		Info:    "Service for IGC tracks.",
+		Version: "v1"}
 
 	m, err := json.MarshalIndent(&meta, "", "    ")
 	if err != nil {
