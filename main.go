@@ -46,7 +46,7 @@ var startTime time.Time // for UPTIME
 //		Serves /igcinfo/api/
 //		Outputs metadata for this app in json
 func metaHandler(w http.ResponseWriter, r *http.Request) {
-
+	http.Header.Add(w.Header(), "content-type", "application/json")
 	meta := Meta{
 		Uptime:  calculateDuration(time.Since(startTime)),
 		Info:    "Service for IGC tracks.",
@@ -67,7 +67,7 @@ func metaHandler(w http.ResponseWriter, r *http.Request) {
 //		to get the Track
 
 func trackJSON(trackURL string, w http.ResponseWriter, r *http.Request) {
-
+	http.Header.Add(w.Header(), "content-type", "application/json")
 	track, err := igc.ParseLocation(trackURL, r)
 	if err != nil {
 		status := 404
@@ -75,9 +75,13 @@ func trackJSON(trackURL string, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	trackLen := track.Task.Distance()
+	// Calculate total track distance
+	totalDistance := 0.0
+	for i := 0; i < len(track.Points)-1; i++ {
+		totalDistance += track.Points[i].Distance(track.Points[i+1])
+	}
 
-	fields := Fields{track.Date, track.Pilot, track.GliderType, track.GliderID, trackLen}
+	fields := Fields{track.Date, track.Pilot, track.GliderType, track.GliderID, totalDistance}
 	m, err := json.MarshalIndent(&fields, "", "    ")
 	if err != nil {
 		fmt.Fprintln(w, err)
@@ -92,7 +96,7 @@ func trackJSON(trackURL string, w http.ResponseWriter, r *http.Request) {
 //	prints on the screen the specified field
 //	of specified ID
 func trackField(index int, field string, w http.ResponseWriter, r *http.Request) {
-
+	http.Header.Add(w.Header(), "content-type", "text/plain")
 	trackURL := igcs[index]
 	track, err := igc.ParseLocation(trackURL, r)
 	if err != nil {
@@ -100,14 +104,19 @@ func trackField(index int, field string, w http.ResponseWriter, r *http.Request)
 		http.Error(w, http.StatusText(status), status)
 		return
 	}
+	
+	// Calculate total track distance
+	totalDistance := 0.0
+	for i := 0; i < len(track.Points)-1; i++ {
+		totalDistance += track.Points[i].Distance(track.Points[i+1])
+	}
 
-	trackLen := track.Task.Distance()
 
 	switch field {
 	case "pilot":
 		fmt.Fprintln(w, track.Pilot)
 	case "track_length":
-		fmt.Fprintln(w, trackLen)
+		fmt.Fprintln(w, totalDistance)
 	case "glider":
 		fmt.Fprintln(w, track.GliderType)
 	case "glider_id":
@@ -127,7 +136,7 @@ func trackField(index int, field string, w http.ResponseWriter, r *http.Request)
 //
 //
 func argsHandler(w http.ResponseWriter, r *http.Request) {
-
+	
 	parts := strings.Split(r.URL.Path, "/") // array of url parts
 
 	if len(parts) > fieldArg+1 {
@@ -149,6 +158,7 @@ func argsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(parts) > fieldArg {
+		
 		index, err := strconv.Atoi(parts[idArg])
 		if err != nil {
 			status := 404
@@ -173,22 +183,23 @@ func argsHandler(w http.ResponseWriter, r *http.Request) {
 //		The URL gets stored with a unique ID in a map
 //		json array outputs list of id's
 func inputHandler(w http.ResponseWriter, r *http.Request) {
-
+	http.Header.Add(w.Header(), "content-type", "application/json")
 	parts := strings.Split(r.URL.Path, "/")
 
 	if len(parts) < 5 {
 		switch r.Method {
 		case "GET":
-			http.ServeFile(w, r, "form.html")
+			showIDs(w);
 		case "POST":
 
-			if err := r.ParseForm(); err != nil {
-				fmt.Fprintf(w, "ParseForm() err: %v", err)
-				return
-			}
-
-			// get url from form and ten see if the url is valid. If it is, store in map
-			trackURL := r.FormValue("link")
+			type reqURL struct {
+		    	URL string `json:url`
+		    }
+		    
+		    req := reqURL{}
+		    json.NewDecoder(r.Body).Decode(&req)
+		    trackURL := req.URL
+		    
 			if _, err := igc.ParseLocation(trackURL, r); err != nil {
 				status := 400
 				http.Error(w, http.StatusText(status), status)
@@ -209,13 +220,32 @@ func inputHandler(w http.ResponseWriter, r *http.Request) {
 //	Creates a new ID for the next url
 //	and appends to ID-slice.
 //
-func idManager(w http.ResponseWriter) {
+func idManager(w http.ResponseWriter){
 	ids = append(ids, strconv.Itoa(lastID))
-	lastID++
+	type responseID struct {
+		ID string `json:"id"`
+	}
+	
+	res := responseID{}
+	res.ID = strconv.Itoa(lastID)
+	json.NewEncoder(w).Encode(res)
+	
+    lastID++  
+}
 
-	idsJSON, _ := json.MarshalIndent(ids, "", "    ")
-	fmt.Fprintln(w, string(idsJSON))
 
+
+//	Returns the entire list of used IDs
+func showIDs(w http.ResponseWriter){
+	if len(ids) <= 0 {
+		http.Header.Add(w.Header(), "content-type", "text/plain")
+		status := 404
+		http.Error(w, http.StatusText(status), status)
+		return
+	}
+
+	idsJson, _ := json.MarshalIndent(ids, "", "    ")
+    fmt.Fprintln(w, string(idsJson))
 }
 
 //	Input: Time in seconds
