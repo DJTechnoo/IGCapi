@@ -6,6 +6,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	//"io"
 	"github.com/DJTechnoo/goigc"
 	"google.golang.org/appengine"
 	"net/http"
@@ -54,11 +55,17 @@ func metaHandler(w http.ResponseWriter, r *http.Request) {
 
 	m, err := json.MarshalIndent(&meta, "", "    ")
 	if err != nil {
-		fmt.Fprintln(w, err)
+		status := 400
+		http.Error(w, http.StatusText(status), status)
 		return
 	}
 
-	fmt.Fprintf(w, string(m))
+	_, err = fmt.Fprintf(w, string(m))
+	if err != nil {
+		status := 500
+		http.Error(w, http.StatusText(status), status)
+		return
+	}
 
 }
 
@@ -70,7 +77,7 @@ func trackJSON(trackURL string, w http.ResponseWriter, r *http.Request) {
 	http.Header.Add(w.Header(), "content-type", "application/json")
 	track, err := igc.ParseLocation(trackURL, r)
 	if err != nil {
-		status := 404
+		status := 400
 		http.Error(w, http.StatusText(status), status)
 		return
 	}
@@ -84,11 +91,17 @@ func trackJSON(trackURL string, w http.ResponseWriter, r *http.Request) {
 	fields := Fields{track.Date, track.Pilot, track.GliderType, track.GliderID, totalDistance}
 	m, err := json.MarshalIndent(&fields, "", "    ")
 	if err != nil {
-		fmt.Fprintln(w, err)
+		status := 500
+		http.Error(w, http.StatusText(status), status)
 		return
 	}
 
-	fmt.Fprintf(w, string(m))
+	_, err = fmt.Fprintf(w, string(m))
+	if err != nil {
+		status := 500
+		http.Error(w, http.StatusText(status), status)
+		return
+	}
 
 }
 
@@ -104,25 +117,29 @@ func trackField(index int, field string, w http.ResponseWriter, r *http.Request)
 		http.Error(w, http.StatusText(status), status)
 		return
 	}
-	
-	// Calculate total track distance
-	totalDistance := 0.0
-	for i := 0; i < len(track.Points)-1; i++ {
-		totalDistance += track.Points[i].Distance(track.Points[i+1])
-	}
-
 
 	switch field {
 	case "pilot":
-		fmt.Fprintln(w, track.Pilot)
+		_, _ = fmt.Fprintln(w, track.Pilot)
+
 	case "track_length":
-		fmt.Fprintln(w, totalDistance)
+		// Calculate total track distance
+		totalDistance := 0.0
+		for i := 0; i < len(track.Points)-1; i++ {
+			totalDistance += track.Points[i].Distance(track.Points[i+1])
+		}
+
+		_, _ = fmt.Fprintln(w, totalDistance)
+
 	case "glider":
-		fmt.Fprintln(w, track.GliderType)
+		_, _ = fmt.Fprintln(w, track.GliderType)
+
 	case "glider_id":
-		fmt.Fprintln(w, track.GliderID)
+		_, _ = fmt.Fprintln(w, track.GliderID)
+
 	case "H_date":
-		fmt.Fprintln(w, track.Date)
+		_, _ = fmt.Fprintln(w, track.Date)
+
 	default:
 		status := 404
 		http.Error(w, http.StatusText(status), status)
@@ -136,7 +153,7 @@ func trackField(index int, field string, w http.ResponseWriter, r *http.Request)
 //
 //
 func argsHandler(w http.ResponseWriter, r *http.Request) {
-	
+
 	parts := strings.Split(r.URL.Path, "/") // array of url parts
 
 	if len(parts) > fieldArg+1 {
@@ -158,7 +175,7 @@ func argsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(parts) > fieldArg {
-		
+
 		index, err := strconv.Atoi(parts[idArg])
 		if err != nil {
 			status := 404
@@ -172,7 +189,7 @@ func argsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		field := string(parts[fieldArg])
+		field := parts[fieldArg]
 		trackField(index, field, w, r)
 
 	}
@@ -189,63 +206,87 @@ func inputHandler(w http.ResponseWriter, r *http.Request) {
 	if len(parts) < 5 {
 		switch r.Method {
 		case "GET":
-			showIDs(w);
+			showIDs(w)
 		case "POST":
 
 			type reqURL struct {
-		    	URL string `json:url`
-		    }
-		    
-		    req := reqURL{}
-		    json.NewDecoder(r.Body).Decode(&req)
-		    trackURL := req.URL
-		    
+				URL string `json:"url"`
+			}
+
+			req := reqURL{}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				status := 400
+				http.Error(w, http.StatusText(status), status)
+				return
+			}
+
+			trackURL := req.URL
+
 			if _, err := igc.ParseLocation(trackURL, r); err != nil {
 				status := 400
 				http.Error(w, http.StatusText(status), status)
 				return
 			}
 
-			igcs[lastID] = string(trackURL)
+			igcs[lastID] = trackURL
 			idManager(w)
 
 		default:
-			fmt.Fprintf(w, "Sorry, only GET and POST methods are supported.")
+			status := 400
+			http.Error(w, http.StatusText(status), status)
+			return
 		}
 	} else {
-		fmt.Fprintln(w, "More params!")
+		_, err := fmt.Fprintln(w, "More params!")
+		if err != nil {
+			status := 400
+			http.Error(w, http.StatusText(status), status)
+			return
+		}
 	}
 }
 
 //	Creates a new ID for the next url
 //	and appends to ID-slice.
 //
-func idManager(w http.ResponseWriter){
+func idManager(w http.ResponseWriter) {
 	ids = append(ids, strconv.Itoa(lastID))
 	type responseID struct {
 		ID string `json:"id"`
 	}
-	
+
 	res := responseID{}
 	res.ID = strconv.Itoa(lastID)
-	json.NewEncoder(w).Encode(res)
-	
-    lastID++  
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		status := 400
+		http.Error(w, http.StatusText(status), status)
+		return
+	}
+
+	lastID++
 }
 
-
-
 //	Returns the entire list of used IDs
-func showIDs(w http.ResponseWriter){
+func showIDs(w http.ResponseWriter) {
 	if len(ids) <= 0 {
-		http.Header.Add(w.Header(), "content-type", "text/plain")
+		//http.Header.Add(w.Header(), "content-type", "text/plain")
 		status := 404
 		http.Error(w, http.StatusText(status), status)
 		return
 	}
 
-	idsJson, _ := json.MarshalIndent(ids, "", "    ")
-    fmt.Fprintln(w, string(idsJson))
+	idsJSON, err := json.MarshalIndent(ids, "", "    ")
+	if err != nil {
+		status := 500
+		http.Error(w, http.StatusText(status), status)
+		return
+	}
+	_, err = fmt.Fprintln(w, string(idsJSON))
+	if err != nil {
+		status := 500
+		http.Error(w, http.StatusText(status), status)
+		return
+	}
 }
 
 //	Input: Time in seconds

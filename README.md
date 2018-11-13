@@ -3,7 +3,7 @@
 ## Description
 
 This is an assignment project written in Golang
- that uses the `goigc` library and is deployed on Google Cloud app-engine.
+that uses the `goigc` library and is deployed on Google Cloud app-engine.
 The idea of this project is to extract data from IGC files and
 output them as JSON.
 The application is deployed on 
@@ -14,11 +14,11 @@ here http://igcapifly.appspot.com/igcinfo/api/igc
 To see the application's metadata navigate to 
 `igcinfo/api`
 
-URLs need to be posted at
+URLs need to be posted with json. `{"url":"<url>"}`.
 `igcinfo/api/igc`
 and will be stored with a unique id starting from '0'.
 
-To display JSON from a given URL navigate to
+To display JSON from a given ID navigate to
 `igcinfo/api/igc/<id>`
 
 To only display a field of an IGC file as plain text, navigate to
@@ -33,6 +33,11 @@ track_length
 H_date
 ```
 
+## Checklist:
+`go vet`        no complaints
+`golint`        no complaints
+`gometalinter`  no complaints
+`go fmt`        done
 
 
 ## Authors
